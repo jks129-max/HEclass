@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중3 사회 - 실시간 인구 피라미드 시뮬레이터</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome (Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts (Noto Sans KR) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        /* Custom range slider styling */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #4F46E5;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-12">
+    <!-- 상단 헤더 영역 -->
+    <header class="bg-indigo-700 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-5 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white/10 p-3 rounded-xl backdrop-blur-sm">
+                    <i class="fa-solid fa-users-line text-2xl text-indigo-200"></i>
+                </div>
+                <div>
+                    <span class="inline-block bg-indigo-500/50 text-indigo-100 text-xs font-semibold px-2.5 py-0.5 rounded-full mb-1">
+                        중3 사회 Ⅱ. 인구 변화와 인구 문제
+                    </span>
+                    <h1 class="text-2xl font-bold tracking-tight">실시간 인구 피라미드 시뮬레이터</h1>
+                </div>
+            </div>
+            <div class="bg-indigo-800/60 px-4 py-2 rounded-lg border border-indigo-500/30 text-xs text-indigo-100 text-center sm:text-right">
+                출산율과 기대수명 변화에 따른<br>인구 구조의 변동을 직접 실험해보세요!
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <!-- 인구 유형 프리셋 선택 버튼 -->
+        <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div class="flex items-center gap-2 font-bold text-slate-700">
+                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
+                    <span>대표 인구 구조 프리셋 선택:</span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full md:w-auto">
+                    <button onclick="applyPreset('pyramid')" class="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> 피라미드형 (기진국)
+                    </button>
+                    <button onclick="applyPreset('bell')" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-bell"></i> 종형 (선진국 정체)
+                    </button>
+                    <button onclick="applyPreset('urn')" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-wine-glass"></i> 항아리형 (초고령사회)
+                    </button>
+                    <button onclick="applyPreset('koreaCurrent')" class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-flag text-red-500"></i> 한국 현재 (초저출생)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 대시보드 그리드: 컨트롤러 & 시각화 & 지표 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- 컨트롤 패널 (4 cols) -->
+            <div class="lg:col-span-4 space-y-6">
+                <!-- 조절 슬라이더 카드 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2 pb-3 border-b border-slate-100">
+                        <i class="fa-sliders text-indigo-600"></i> 변수 조절하기
+                    </h2>
+
+                    <!-- 1. 합계출산율 슬라이더 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="tfrSlider" class="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                                <i class="fa-baby text-pink-500"></i> 합계출산율 (TFR)
+                            </label>
+                            <span id="tfrValue" class="text-lg font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-lg">
+                                1.30 명
+                            </span>
+                        </div>
+                        <input type="range" id="tfrSlider" min="0.5" max="5.0" step="0.05" value="1.30"
+                            class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                        <div class="flex justify-between text-[11px] text-slate-400 mt-1">
+                            <span>0.5 (초저출생)</span>
+                            <span>2.1 (인구유지)</span>
+                            <span>5.0 (고출생)</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                            💡 여성이 평생 낳을 것으로 예상되는 평균 출생아 수 (피라미드 바닥 폭 결정)
+                        </p>
+                    </div>
+
+                    <!-- 2. 기대수명 슬라이더 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="leSlider" class="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                                <i class="fa-heart-pulse text-red-500"></i> 기대수명 (Life Exp.)
+                            </label>
+                            <span id="leValue" class="text-lg font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-lg">
+                                83.5 세
+                            </span>
+                        </div>
+                        <input type="range" id="leSlider" min="50" max="95" step="0.5" value="83.5"
+                            class="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                        <div class="flex justify-between text-[11px] text-slate-400 mt-1">
+                            <span>50세 (고사망)</span>
+                            <span>75세</span>
+                            <span>95세 (초고령)</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                            💡 사람이 태어나서 생존할 것으로 기대되는 평균 수명 (피라미드 상층부 두께 결정)
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 부양비 종합 리포트 카드 -->
+                <div class="bg-indigo-900 text-white p-6 rounded-2xl shadow-sm space-y-4">
+                    <h3 class="text-base font-bold flex items-center justify-between border-b border-indigo-700/60 pb-3">
+                        <span><i class="fa-calculator mr-2 text-indigo-300"></i>부양비 계산기</span>
+                        <span class="text-xs bg-indigo-700/80 text-indigo-200 px-2 py-0.5 rounded font-normal">생산연령 100명당</span>
+                    </h3>
+
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-indigo-800/60 p-3 rounded-xl border border-indigo-700/40">
+                            <div class="text-[11px] text-indigo-200 font-medium mb-1">유소년부양비</div>
+                            <div id="childDependency" class="text-lg font-extrabold text-emerald-300">0.0</div>
+                        </div>
+                        <div class="bg-indigo-800/60 p-3 rounded-xl border border-indigo-700/40">
+                            <div class="text-[11px] text-indigo-200 font-medium mb-1">노년부양비</div>
+                            <div id="oldDependency" class="text-lg font-extrabold text-amber-300">0.0</div>
+                        </div>
+                        <div class="bg-indigo-800/40 p-3 rounded-xl border border-indigo-500/50">
+                            <div class="text-[11px] text-indigo-200 font-medium mb-1">총 부양비</div>
+                            <div id="totalDependency" class="text-xl font-black text-white">0.0</div>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-indigo-200/80 leading-relaxed">
+                        * 노년부양비가 증가할수록 생산연령층이 부담해야 할 사회적 복지 비용 및 부양 부담이 증가하게 됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 인구 피라미드 차트 & 주요 3대 인구 비율 (8 cols) -->
+            <div class="lg:col-span-8 space-y-6">
+                <!-- 3대 인구 구성 비율 요약 카드 -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- 유소년 인구 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-emerald-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">유소년 인구</span>
+                                <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">0 ~ 14세</span>
+                            </div>
+                            <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                                <i class="fa-child text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline justify-between">
+                            <span id="ratioYouth" class="text-3xl font-extrabold text-slate-800">0.0%</span>
+                            <span id="typeYouth" class="text-xs text-slate-500">유소년층</span>
+                        </div>
+                    </div>
+
+                    <!-- 생산연령 인구 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-indigo-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">생산연령 인구</span>
+                                <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">15 ~ 64세</span>
+                            </div>
+                            <div class="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                                <i class="fa-briefcase text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline justify-between">
+                            <span id="ratioWorking" class="text-3xl font-extrabold text-slate-800">0.0%</span>
+                            <span id="typeWorking" class="text-xs text-slate-500">경제활동층</span>
+                        </div>
+                    </div>
+
+                    <!-- 노년 인구 -->
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 border-l-4 border-l-amber-500">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">노년 인구</span>
+                                <span class="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">65세 이상</span>
+                            </div>
+                            <div class="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                                <i class="fa-person-cane text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline justify-between">
+                            <span id="ratioElderly" class="text-3xl font-extrabold text-slate-800">0.0%</span>
+                            <span id="agingStatus" class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md">고령사회</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 차트 캔버스 카드 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-chart-bar text-indigo-600"></i>
+                            <h2 class="text-lg font-bold text-slate-800">연령별·성별 인구 피라미드</h2>
+                        </div>
+                        <div class="flex items-center gap-4 text-xs font-semibold">
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> 남성 (Male)</span>
+                            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-pink-500 inline-block"></span> 여성 (Female)</span>
+                        </div>
+                    </div>
+                    <!-- 차트 컨테이너 -->
+                    <div class="relative w-full h-[420px]">
+                        <canvas id="pyramidChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 하단: 수업용 생각해 볼 질문 (2가지) 및 개념 정리 -->
+        <section class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 질문 1 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-indigo-100 hover:border-indigo-300 transition relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-2 h-full bg-indigo-500"></div>
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="bg-indigo-100 text-indigo-700 font-extrabold text-sm px-3 py-1 rounded-full">생각해 볼 질문 1</span>
+                    <span class="text-xs font-semibold text-slate-400">인구 구조의 변화</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-800 mb-2">
+                    출산율이 낮아지고 기대수명이 증가하면 인구 피라미드의 모양과 노년 부양비는 어떻게 변할까요?
+                </h3>
+                <p class="text-sm text-slate-600 leading-relaxed mb-4">
+                    시뮬레이터의 출산율을 낮추고 기대수명을 올려보세요. 유소년층(바닥)과 노년층(상층부)의 비율 변화가 우리 사회의 노동력, 조세, 복지 제도에 미칠 영향에 대해 생각해보세요.
+                </p>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-600">
+                    <span class="font-bold text-indigo-600">💡 힌트:</span> 피라미드 하단이 좁아지고 상단이 팽창하면서 '항아리형/역피라미드형'으로 변하고, 생산연령층 1명이 부양해야 할 노인 수(노년부양비)가 급격히 늘어납니다.
+                </div>
+            </div>
+
+            <!-- 질문 2 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-indigo-100 hover:border-indigo-300 transition relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-2 h-full bg-pink-500"></div>
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="bg-pink-100 text-pink-700 font-extrabold text-sm px-3 py-1 rounded-full">생각해 볼 질문 2</span>
+                    <span class="text-xs font-semibold text-slate-400">사회적 대책과 정책</span>
+                </div>
+                <h3 class="text-base font-bold text-slate-800 mb-2">
+                    생산연령인구 비율이 줄어드는 저출생·고령사회 극복을 위해 국가와 개인은 어떤 대책을 마련해야 할까요?
+                </h3>
+                <p class="text-sm text-slate-600 leading-relaxed mb-4">
+                    현재 대한민국 프리셋을 눌러 인구 구조를 확인해 보세요. 지속 가능한 사회를 만들기 위해 출산율을 높이는 정책이나 고령인구 활용 정책에는 무엇이 있을지 토의해 봅시다.
+                </p>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-600">
+                    <span class="font-bold text-pink-600">💡 힌트:</span> 일-가정 양립 지원, 보육·주거 지원, 정년 연장 및 노인 일자리 창출, 복지 재정 확충, 이민 정책 고려 등이 토의될 수 있습니다.
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // --- 글로벌 변수 및 데이터 정의 ---
+        // 5세 단위 연령군 (0~4세부터 100세 이상까지 21개 구간)
+        const ageGroups = [
+            '0-4세', '5-9세', '10-14세', '15-19세', '20-24세',
+            '25-29세', '30-34세', '35-39세', '40-44세', '45-49세',
+            '50-54세', '55-59세', '60-64세', '65-69세', '70-74세',
+            '75-79세', '80-84세', '85-89세', '90-94세', '95-99세', '100세+'
+        ];
+
+        let chartInstance = null;
+
+        /**
+         * 합계출산율(TFR)과 기대수명(e0)을 바탕으로 연령대별 남녀 인구 비율(%)을 계산하는 데모 알고리즘
+         */
+        function calculatePopulationData(tfr, e0) {
+            const malePop = [];
+            const femalePop = [];
+
+            // 연령별(0~100세) 생존율 및 인구 구조 시뮬레이션
+            // 기본 출생 인구 지수 (TFR 비례)
+            const baseBirthRate = Math.pow(tfr / 2.1, 0.85);
+
+            for (let i = 0; i < ageGroups.length; i++) {
+                const age = i * 5 + 2.5; // 구간 중앙 연령
+
+                // Sigmoid 및 Gompertz 감소 모델을 응용한 생존 모델
+                // e0(기대수명) 근처에서 급격히 사망률이 증가하는 구조
+                const k = 8.5 + (e0 - 70) * 0.1; // 생존곡선 경사도
+                const survivalRate = 1 / (1 + Math.exp((age - e0) / k));
+
+                // 출생률 감소 효과 (젊은 층 인구에 TFR 반영)
+                // 연령이 낮을수록(i가 0에 가까울수록) 최근 TFR 영향 반영
+                let cohortTfrFactor = 1.0;
+                if (i <= 3) { // 0~19세
+                    cohortTfrFactor = baseBirthRate;
+                } else if (i <= 7) { // 20~39세
+                    cohortTfrFactor = 1.0 + (baseBirthRate - 1.0) * 0.5;
+                }
+
+                // 기초 인구 가중치
+                let rawPop = survivalRate * cohortTfrFactor * 100;
+
+                // 고령층 완만 감소 처리
+                if (age > e0) {
+                    rawPop *= Math.exp(-(age - e0) / 12);
+                }
+
+                // 남녀 차이 (출생 성비 남105:여100, 고령층 여성 생존율 높음)
+                let maleFactor = 1.05;
+                let femaleFactor = 1.00;
+
+                if (age > 60) {
+                    // 고령층일수록 여성이 우세해짐
+                    const elderlyRatio = (age - 60) / 40;
+                    maleFactor -= elderlyRatio * 0.25;
+                    femaleFactor += elderlyRatio * 0.15;
+                }
+
+                malePop.push(rawPop * maleFactor);
+                femalePop.push(rawPop * femaleFactor);
+            }
+
+            // 전체 인구합으로 나누어 전체에 대한 백분율(%)로 정규화
+            const totalPop = malePop.reduce((a, b) => a + b, 0) + femalePop.reduce((a, b) => a + b, 0);
+
+            const malePercentages = malePop.map(v => (v / totalPop) * 100);
+            const femalePercentages = femalePop.map(v => (v / totalPop) * 100);
+
+            return { malePercentages, femalePercentages };
+        }
+
+        /**
+         * Chart.js 인구 피라미드 생성 및 업데이트
+         */
+        function initChart() {
+            const ctx = document.getElementById('pyramidChart').getContext('2d');
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ageGroups,
+                    datasets: [
+                        {
+                            label: '남성 (%)',
+                            data: [],
+                            backgroundColor: 'rgba(59, 130, 246, 0.85)',
+                            borderColor: 'rgba(37, 99, 235, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.9,
+                            categoryPercentage: 0.9
+                        },
+                        {
+                            label: '여성 (%)',
+                            data: [],
+                            backgroundColor: 'rgba(236, 72, 153, 0.85)',
+                            borderColor: 'rgba(219, 39, 119, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.9,
+                            categoryPercentage: 0.9
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y', // 수평 막대 차트 (인구 피라미드 형태)
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                            title: {
+                                display: true,
+                                text: '인구 비율 (%)',
+                                font: { font: 'Noto Sans KR', size: 12, weight: 'bold' },
+                                color: '#64748B'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    // 음수 표기를 양수로 변환하여 피라미드 좌우 정렬
+                                    return Math.abs(value).toFixed(1) + '%';
+                                },
+                                font: { size: 11 }
+                            },
+                            grid: {
+                                color: '#E2E8F0'
+                            }
+                        },
+                        y: {
+                            stacked: false,
+                            title: {
+                                display: true,
+                                text: '연령대',
+                                font: { font: 'Noto Sans KR', size: 12, weight: 'bold' },
+                                color: '#64748B'
+                            },
+                            ticks: {
+                                font: { size: 11 }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false // 상단에 커스텀 범례 작성됨
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = Math.abs(context.raw).toFixed(2);
+                                    return `${context.dataset.label}: ${value}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        /**
+         * 슬라이더 변경 시 시뮬레이터 전체 업데이트
+         */
+        function updateDashboard() {
+            const tfr = parseFloat(document.getElementById('tfrSlider').value);
+            const le = parseFloat(document.getElementById('leSlider').value);
+
+            // 레이블 수치 업데이트
+            document.getElementById('tfrValue').innerText = tfr.toFixed(2) + ' 명';
+            document.getElementById('leValue').innerText = le.toFixed(1) + ' 세';
+
+            // 인구 구조 데모 데이터 계산
+            const { malePercentages, femalePercentages } = calculatePopulationData(tfr, le);
+
+            // 피라미드 차트를 위해 남성 데이터는 음수(-)로 변환
+            const maleChartData = malePercentages.map(v => -v);
+            const femaleChartData = femalePercentages;
+
+            // 차트 업데이트
+            chartInstance.data.datasets[0].data = maleChartData;
+            chartInstance.data.datasets[1].data = femaleChartData;
+
+            // 축 범위 동적 맞춤 (맥스값에 맞춰 대칭 조정)
+            const maxVal = Math.max(
+                ...malePercentages,
+                ...femalePercentages
+            );
+            const limit = Math.ceil(maxVal * 1.15);
+            chartInstance.options.scales.x.min = -limit;
+            chartInstance.options.scales.x.max = limit;
+
+            chartInstance.update();
+
+            // 3대 인구 비율 계산 (유소년: 0-14세 [index 0,1,2], 생산연령: 15-64세 [index 3~12], 노년: 65세+ [index 13~20])
+            let youthSum = 0;
+            let workingSum = 0;
+            let elderlySum = 0;
+
+            for (let i = 0; i < ageGroups.length; i++) {
+                const totalAgeGroupPop = malePercentages[i] + femalePercentages[i];
+                if (i <= 2) {
+                    youthSum += totalAgeGroupPop;
+                } else if (i <= 12) {
+                    workingSum += totalAgeGroupPop;
+                } else {
+                    elderlySum += totalAgeGroupPop;
+                }
+            }
+
+            // HTML에 비율 표시
+            document.getElementById('ratioYouth').innerText = youthSum.toFixed(1) + '%';
+            document.getElementById('ratioWorking').innerText = workingSum.toFixed(1) + '%';
+            document.getElementById('ratioElderly').innerText = elderlySum.toFixed(1) + '%';
+
+            // 부양비 계산 (생산연령 100명 당)
+            const childDep = (youthSum / workingSum) * 100;
+            const oldDep = (elderlySum / workingSum) * 100;
+            const totalDep = childDep + oldDep;
+
+            document.getElementById('childDependency').innerText = childDep.toFixed(1);
+            document.getElementById('oldDependency').innerText = oldDep.toFixed(1);
+            document.getElementById('totalDependency').innerText = totalDep.toFixed(1);
+
+            // 고령화 사회 단계 판단 (노년인구 비율 기준)
+            const agingStatusEl = document.getElementById('agingStatus');
+            if (elderlySum >= 20.0) {
+                agingStatusEl.innerText = '초고령사회 (20%+)' ;
+                agingStatusEl.className = 'text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-md';
+            } else if (elderlySum >= 14.0) {
+                agingStatusEl.innerText = '고령사회 (14%+)' ;
+                agingStatusEl.className = 'text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md';
+            } else if (elderlySum >= 7.0) {
+                agingStatusEl.innerText = '고령화사회 (7%+)' ;
+                agingStatusEl.className = 'text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md';
+            } else {
+                agingStatusEl.innerText = '초기 단계 (<7%)' ;
+                agingStatusEl.className = 'text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md';
+            }
+        }
+
+        /**
+         * 프리셋 버튼 작동 함수
+         */
+        function applyPreset(type) {
+            const tfrSlider = document.getElementById('tfrSlider');
+            const leSlider = document.getElementById('leSlider');
+
+            switch(type) {
+                case 'pyramid': // 피라미드형 (기진국/개발도상국 - 고출생 고사망/저사망)
+                    tfrSlider.value = 4.2;
+                    leSlider.value = 62.0;
+                    break;
+                case 'bell': // 종형 (선진국 정체형 - 저출생 저사망)
+                    tfrSlider.value = 2.0;
+                    leSlider.value = 78.5;
+                    break;
+                case 'urn': // 항아리형 (감소형 - 초저출생, 고령사회)
+                    tfrSlider.value = 1.1;
+                    leSlider.value = 85.0;
+                    break;
+                case 'koreaCurrent': // 한국 현재 (2024년 초저출생 현상 극단화)
+                    tfrSlider.value = 0.72;
+                    leSlider.value = 83.6;
+                    break;
+            }
+
+            updateDashboard();
+        }
+
+        window.onload = function() {
+            initChart();
+            updateDashboard();
+
+            // 슬라이더 이벤트 리스너 등록 (실시간 반영)
+            document.getElementById('tfrSlider').addEventListener('input', updateDashboard);
+            document.getElementById('leSlider').addEventListener('input', updateDashboard);
+        };
+    </script>
+</body>
+</html>
